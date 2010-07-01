@@ -323,6 +323,8 @@ class PgNumpy(cpgnumpy.cPgNumpy):
         # you can also shortcut the execute/fetch process by sending a query to
         # fetchall
         >>> res = pg.fetchall('select * from mytable')
+        # or use the alias fetch
+        >>> res = pg.fetch('select * from mytable')
 
 
         # print a nice list of all public tables in the default database
@@ -1879,9 +1881,9 @@ class ArrayWriter:
         ArrayWriter
     Purpose:
 
-        A python only class to write numpy arrays.  Can write arrays with
-        fields in columns.  Can also do a "fancy" print of the array which
-        is easy on the eyes but not good for machine reading.
+        A python class to write numpy arrays as ascii data.  recarrays are
+        written in columns.  Can also do a "fancy" print of the array which is
+        easy on the eyes but not good for machine reading.
 
         This is much slower than using the recfile package, but as it
         is python only it is more flexible.
@@ -1910,7 +1912,8 @@ class ArrayWriter:
 
         fancy:  
             If True, use a fancy printing scheme instead of the simple machine
-            readable format that is default.
+            readable format that is default.  The delim keyword is ignored and
+            arrays are always bracketed.
         page:
             If True, send the output to a pager.
 
@@ -1919,7 +1922,7 @@ class ArrayWriter:
         aw.write(arr)
 
         # if fancy=True, can sent a title to place above the printout
-        aw = ArrayWriter(delim='\t', fancy=True)
+        aw = ArrayWriter(fancy=True)
         aw.write(array, title='My Table')
 
 
