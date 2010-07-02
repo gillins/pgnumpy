@@ -50,6 +50,7 @@ cPgNumpy::cPgNumpy(const char* conninfo) throw (const char*)
 cPgNumpy::~cPgNumpy()
 {
     Py_XDECREF(mFlenDict);
+    // Note close also calls clear()
     close();
 }
 
@@ -82,6 +83,24 @@ void cPgNumpy::open(const char* conninfo) throw (const char*)
 
 }
 
+void cPgNumpy::_cancel_after_sigint(PyOS_sighandler_t old_inthandler) {
+
+    sigrelse(SIGINT);
+
+    clear();
+
+    cout<<"\nInterrupt encountered. Canceling query...";
+    PyOS_setsig(SIGINT, old_inthandler);
+
+    if (!PQrequestCancel(mConn)) {
+        stringstream err;
+        err<<"Failed to cancel: "<<PQerrorMessage(mConn)<<"\n";
+        _print_flush(err.str().c_str());
+    } else {
+        _print_flush("OK\n");
+    }
+
+}
 
 // execute a query
 void cPgNumpy::execute(string query_string) throw (const char*)
@@ -92,35 +111,19 @@ void cPgNumpy::execute(string query_string) throw (const char*)
 void cPgNumpy::execute(const char* query_string) throw (const char*)
 {
 
-	PyOS_sighandler_t old_inthandler;
+    // First signal handling so we can control-c out of
+    // long running queries
+
+    PyOS_sighandler_t old_inthandler;
 	old_inthandler = PyOS_setsig(SIGINT, onintr);
-
 	if (setjmp(jbuf)) {
-#ifdef HAVE_SIGRELSE
-		/* This seems necessary on SunOS 4.1 (Rasmus Hahn) */
-		sigrelse(SIGINT);
-#endif
-
-        clear();
-
-        cout<<"\nInterrupt encountered. Canceling query...";
-		PyOS_setsig(SIGINT, old_inthandler);
-        if (!PQrequestCancel(mConn)) {
-            stringstream err;
-            err<<"Failed to cancel: "<<PQerrorMessage(mConn)<<"\n";
-            _print_flush(err.str().c_str());
-        } else {
-            _print_flush("OK\n");
-        }
+        _cancel_after_sigint(old_inthandler);
         return;
     }
 
-
-    // first clear any existing results
     clear();
     if (debug) {
-        cout<<"Executing query: '"<<query_string<<"'"<<endl;
-        fflush(stdout);
+        cout<<query_string<<"'"<<endl;fflush(stdout);
     }
     mResult = PQexecParams(mConn,
             query_string,
@@ -133,6 +136,10 @@ void cPgNumpy::execute(const char* query_string) throw (const char*)
 
     // If we get here we are good
 	PyOS_setsig(SIGINT, old_inthandler);
+
+    // keep track if the mResult structure is binary or
+    // ascii
+    mLastExecWasBinary=mBinary;
 
     // sets mResultStatus, mNtuples, mNfields
     // also can set error strings
@@ -242,6 +249,16 @@ void cPgNumpy::set_fetch_count(long long fetchcount) {
 //
 // The return value is the number of rows returned
 long long cPgNumpy::execwrite(const char* query, const char* filename) throw (const char*) {
+
+    // First signal handling so we can control-c out of
+    // long running queries
+
+    PyOS_sighandler_t old_inthandler;
+	old_inthandler = PyOS_setsig(SIGINT, onintr);
+	if (setjmp(jbuf)) {
+        _cancel_after_sigint(old_inthandler);
+        return -1;
+    }
 
     PGresult *res=NULL;
 
@@ -504,6 +521,10 @@ void cPgNumpy::clear_field_lengths() throw (const char*)
 
 
 PyObject* cPgNumpy::fetchall() throw (const char*) {
+
+    if (!mLastExecWasBinary) {
+        throw "Don't yet support fetching text results into arrays";
+    }
 
     PyObject* ret=NULL;
     npy_intp dims[1] = {0};
@@ -1104,6 +1125,8 @@ void cPgNumpy::_print_debug(const char *text)
 void cPgNumpy::_set_defaults() {
     // binary data retrieval
     mBinary=1;
+    mLastExecWasBinary=1;
+
     // for printig we would set mBinary=0 and
     // might turn off array decorators
     mUseArrayDecorators=true;
