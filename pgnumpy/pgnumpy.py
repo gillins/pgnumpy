@@ -801,6 +801,46 @@ class PgNumpy(cpgnumpy.cPgNumpy):
         else:
             return False
 
+    def count(self, table):
+        """
+        Class:
+            PgNumpy
+        Method Name:
+            count
+        Purpose:
+            Get the row count from a table.  If the table {table}_meta exists,
+            then the "count" field is read.  Other wise, a full select count(*)
+            on table is performed.  As the latter is quite slow, it is
+            recommended to create a meta table.
+
+        Calling Sequence:
+            pg = pgnumpy.connect()
+            count = pg.count('mytable')
+        """
+        if not self.table_exists(table):
+            raise ValueError("Table does not exist: '%s'" % table)
+        meta_table = '{table}_meta'.format(table=table)
+        if self.table_exists(meta_table):
+            # try to read the count field from the meta table
+            q='select count from {meta_table}'.format(meta_table=meta_table)
+            try:
+                res=self.fetch(q)
+                if res.size == 0:
+                    pass
+                else:
+                    count = res['count'][0]
+                    return count
+            except:
+                # probably the count field does not exist.  Move on.
+                pass
+
+        # If we get here we need to run a full count(*)
+        q='select count(*) from {table}'.format(table=table)
+        res=self.fetch(q)
+        if res.size == 0:
+            raise ValueError("Unexpectedly no results returned")
+        return res['count'][0]
+
     def current_queries(self):
         """
         Class:
