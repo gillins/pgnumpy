@@ -12,7 +12,7 @@
 
 using namespace std;
 
-#define debug 1
+#define debug 0
 #define debug2 0
 
 /* Macro to convert to host byte-ordering, 8-byte int or float */
