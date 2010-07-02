@@ -801,7 +801,7 @@ class PgNumpy(cpgnumpy.cPgNumpy):
         else:
             return False
 
-    def count(self, table):
+    def count(self, table, verbose=False):
         """
         Class:
             PgNumpy
@@ -823,23 +823,48 @@ class PgNumpy(cpgnumpy.cPgNumpy):
         if self.table_exists(meta_table):
             # try to read the count field from the meta table
             q='select count from {meta_table}'.format(meta_table=meta_table)
+            if verbose:
+                stdout.write(q+'\n')
             try:
                 res=self.fetch(q)
                 if res.size == 0:
                     pass
                 else:
-                    count = res['count'][0]
-                    return count
+                    return res['count'][0]
             except:
                 # probably the count field does not exist.  Move on.
                 pass
 
         # If we get here we need to run a full count(*)
         q='select count(*) from {table}'.format(table=table)
+
+        if verbose:
+            stdout.write(q+'\n')
         res=self.fetch(q)
         if res.size == 0:
             raise ValueError("Unexpectedly no results returned")
         return res['count'][0]
+
+    def create_meta_table(self, table):
+        if not self.table_exists(table):
+            raise ValueError("Table does not exist: '%s'" % table)
+        if self.table_exists(table+'_meta'):
+            raise ValueError("meta table already exists: '%s_meta'" % table)
+
+        q="""
+           CREATE TABLE
+                {table}_meta
+            AS
+                (
+                    SELECT
+                        now() as creation_date,
+                        count(*)
+                    FROM
+                        {table}
+                )
+        """.format(table=table)
+        stdout.write(q+'\n')
+        self.execute(q)
 
     def current_queries(self):
         """
