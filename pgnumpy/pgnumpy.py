@@ -593,31 +593,58 @@ class PgNumpy(cpgnumpy.cPgNumpy):
             self._describe_table(table, page=page)
 
     def _describe_public_tables(self, page=False):
+            # first get the tables
             q = """
-            select
+            SELECT
                 schemaname,
                 tablename,
                 tableowner
-            from
+            FROM
                 pg_tables
-            where
+            WHERE
                 schemaname = 'public'
             """
-            #self.set_field_lengths({'tablename':100,
-            #                        'schemaname':25,
-            #                        'tableowner':25})
-            self.execute(q)
-            res = self.fetchall()
+            tables = self.fetch(q)
 
-            self.clear_field_lengths()
+            q = """
+            SELECT
+                schemaname,
+                viewname,
+                viewowner
+            FROM
+                pg_views
+            WHERE
+                schemaname = 'public'
+            """
+            views = self.fetch(q)
 
-            if res.size == 0:
-                stdout.write("No tables found\n")
+            ntot = tables.size + views.size
+
+            if ntot == 0:
+                stdout.write("No tables or views found\n")
                 return
-            res.dtype.names = ['Schema','Name','Owner']
-            #aprint(res, fancy=True, title='Public Tables')
+
+            output = numpy.zeros(ntot,
+                                 dtype=[('Schema','S10'),
+                                        ('Name','S100'),
+                                        ('Type','S10'),
+                                        ('Owner','S100')])
+
+            output['Schema'][:] = 'public'
+            if tables.size > 0:
+                output['Name'][0:tables.size] = tables['tablename']
+                output['Type'][0:tables.size] = 'table'
+                output['Owner'][0:tables.size] = tables['tableowner']
+            if views.size > 0:
+                output['Name'][tables.size:ntot] = views['viewname']
+                output['Type'][tables.size:ntot] = 'view'
+                output['Owner'][tables.size:ntot] = views['viewowner']
+
+            s=output['Name'].argsort()
+            output = output[s]
+
             aw=ArrayWriter(fancy=True,page=page)
-            aw.write(res, title='Public Tables')
+            aw.write(output, title='Public Tables/Views')
 
     def _describe_table(self, table, page=False):
         # get the oid
@@ -875,12 +902,15 @@ class PgNumpy(cpgnumpy.cPgNumpy):
         Purpose:
             Show all the current running queries.  Note some 
             queries the user may not have permission to view.
+
+            You can cancel one of these queries using
+            select pg_cancel_backend(procpid)
         """
         # get all the current activity, not including this query
         # and IDLE queries
         query="""
         SELECT 
-            datname,usename,current_query,waiting::varchar,query_start::varchar 
+            datname,usename,procpid,current_query,waiting::varchar,query_start::varchar 
         FROM 
             pg_stat_activity 
         WHERE 
@@ -891,7 +921,7 @@ class PgNumpy(cpgnumpy.cPgNumpy):
         aw = ArrayWriter(fancy=True)
         names = list(res.dtype.names)
         names[0] = 'dbname'
-        names[2] = 'query'
+        names[3] = 'query'
         aw.write(res,altnames=names)
 
     def create_index(self, table, column_spec, unique=False):
