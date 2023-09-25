@@ -18,18 +18,18 @@ onintr(int sig)
 
 
 //Constructor and destructor
-cPgNumpy::cPgNumpy() throw (const char*)
+cPgNumpy::cPgNumpy()
 {
-    import_array(); // Must be present for numpy.
+    _import_array(); // Must be present for numpy.
     _set_defaults();
     _print_debug("Opening with no explicit connect info");
     open();
 }
 
 //Constructor and destructor
-cPgNumpy::cPgNumpy(string conninfo) throw (const char*)
+cPgNumpy::cPgNumpy(string conninfo)
 {
-    import_array(); // Must be present for numpy.
+    _import_array(); // Must be present for numpy.
     _set_defaults();
     _print_debug("Opening with no explicit connect info");
     open(conninfo.c_str());
@@ -37,9 +37,9 @@ cPgNumpy::cPgNumpy(string conninfo) throw (const char*)
 
 
 //Constructor and destructor
-cPgNumpy::cPgNumpy(const char* conninfo) throw (const char*)
+cPgNumpy::cPgNumpy(const char* conninfo)
 {
-    import_array(); // Must be present for numpy.
+    _import_array(); // Must be present for numpy.
     _set_defaults();
     _print_debug("Opening with no explicit connect info");
     open(conninfo);
@@ -56,16 +56,16 @@ cPgNumpy::~cPgNumpy()
 
 
 // Open a connection
-void cPgNumpy::open() throw (const char*)
+void cPgNumpy::open()
 {
     open("");
 }
-void cPgNumpy::open(string conninfo) throw (const char*)
+void cPgNumpy::open(string conninfo)
 {
     open(conninfo.c_str());
 }
 
-void cPgNumpy::open(const char* conninfo) throw (const char*)
+void cPgNumpy::open(const char* conninfo)
 {
     close();
     if (conninfo != NULL)
@@ -103,12 +103,12 @@ void cPgNumpy::_cancel_after_sigint(PyOS_sighandler_t old_inthandler) {
 }
 
 // execute a query
-void cPgNumpy::execute(string query_string) throw (const char*)
+void cPgNumpy::execute(string query_string)
 {
     execute(query_string.c_str());
 }
 
-void cPgNumpy::execute(const char* query_string) throw (const char*)
+void cPgNumpy::execute(const char* query_string)
 {
 
     // First signal handling so we can control-c out of
@@ -154,7 +154,7 @@ void cPgNumpy::set_decorators(bool decorate) {
     mUseArrayDecorators=decorate;
 }
 
-long long cPgNumpy::write(const char* filename) throw (const char*) {
+long long cPgNumpy::write(const char* filename) {
     if (mBinary) {
         throw "You must execute the query in text retrieval mode to use write()";
     }
@@ -248,7 +248,7 @@ void cPgNumpy::set_fetch_count(long long fetchcount) {
 // but rather is rolled specially for the cursor
 //
 // The return value is the number of rows returned
-long long cPgNumpy::execwrite(const char* query, const char* filename) throw (const char*) {
+long long cPgNumpy::execwrite(const char* query, const char* filename) {
 
     // First signal handling so we can control-c out of
     // long running queries
@@ -438,7 +438,7 @@ long long cPgNumpy::execwrite(const char* query, const char* filename) throw (co
 // Complex checking of the query status.  This is used to possibly set an
 // error string for later raised exceptions
 
-void cPgNumpy::_check_status() throw (const char*) {
+void cPgNumpy::_check_status() {
 
     //   For successful queries, there are two options: either the query
     //   returns results or not.  If it does not return data, but
@@ -503,7 +503,7 @@ void cPgNumpy::_check_status() throw (const char*) {
 
 }
 
-void cPgNumpy::set_field_lengths(PyObject* flenDict) throw (const char*)
+void cPgNumpy::set_field_lengths(PyObject* flenDict)
 {
     // make sure it's a dict
     if (!PyDict_Check(flenDict)) {
@@ -513,14 +513,14 @@ void cPgNumpy::set_field_lengths(PyObject* flenDict) throw (const char*)
     mFlenDict = PyDict_Copy(flenDict);
 }
 
-void cPgNumpy::clear_field_lengths() throw (const char*)
+void cPgNumpy::clear_field_lengths()
 {
     // when we make a copy we should do a decref
     Py_XDECREF(mFlenDict);
 }
 
 
-PyObject* cPgNumpy::fetchall() throw (const char*) {
+PyObject* cPgNumpy::fetchall() {
 
     if (!mLastExecWasBinary) {
         throw "Don't yet support fetching text results into arrays";
@@ -565,7 +565,7 @@ void cPgNumpy::_fill_array(PyObject* ret) {
 
     // Fill in the array
     PyArrayObject* retarray = (PyArrayObject* ) ret;
-    char* data = retarray->data;
+    char* data = (char*)PyArray_DATA(retarray);
 
     for (npy_intp row=0; row<mNtuples; row++) {
         for (npy_intp field=0; field<mNfields; field++) {
@@ -811,8 +811,8 @@ void cPgNumpy::_make_descr()
         if (debug) {
             cout<<"  Format = "<<nptype<<endl;
 		}
-        PyObject* ttype = PyString_FromString(nptype.c_str());
-        PyObject* tname = PyString_FromString(fname.c_str());
+        PyObject* ttype = PyUnicode_FromString(nptype.c_str());
+        PyObject* tname = PyUnicode_FromString(fname.c_str());
 
         // Don't have to decref objects put into sequence.  They will get
         // decrefed when the sequence is decrefed

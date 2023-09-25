@@ -57,27 +57,27 @@ typedef struct {
 class cPgNumpy {
 
     public:
-        cPgNumpy() throw (const char*);
-        cPgNumpy(string conninfo) throw (const char*);
-        cPgNumpy(const char* conninfo) throw (const char*);
+        cPgNumpy();
+        cPgNumpy(string conninfo);
+        cPgNumpy(const char* conninfo);
         ~cPgNumpy();
 
-        void open() throw (const char*);
-        void open(string conninfo) throw (const char*);
-        void open(const char* conninfo) throw (const char*);
+        void open();
+        void open(string conninfo);
+        void open(const char* conninfo);
 
 
         // Execute a query
-        void execute(string query_string) throw (const char*);
-        void execute(const char* query_string) throw (const char*);
+        void execute(string query_string);
+        void execute(const char* query_string);
 
         // fetch results as an array
-        PyObject* fetchall() throw (const char*);
+        PyObject* fetchall();
 
 
         // Write the results to a file or stdout. Requires running
         // use_text() to get results in text format
-        long long write(const char* filename=NULL) throw (const char*);
+        long long write(const char* filename=NULL);
 
         // return results as text instead of binary.  Note, currently we don't
         // support fetching the results into numpy arrays for text retrevial,
@@ -102,7 +102,7 @@ class cPgNumpy {
         // The return value is the number of rows written
         long long execwrite(
                 const char* query,
-                const char* filename=NULL) throw (const char*);
+                const char* filename=NULL);
         // size of fetch chunks when doing an execwrite
         // DEFAULT is 1000
         void set_fetch_count(long long fetchcount);
@@ -122,8 +122,8 @@ class cPgNumpy {
         // since for those types all the returned values must be scanned to get
         // the *largest*, and the output array field will have those
         // dimensions.  With this setting you can shortcut that.
-        void set_field_lengths(PyObject* flenDict) throw (const char*);
-        void clear_field_lengths() throw (const char*);
+        void set_field_lengths(PyObject* flenDict);
+        void clear_field_lengths();
 
         void clear();
         void close();
@@ -138,7 +138,7 @@ class cPgNumpy {
         void _print_flush(const char *text);
         void _print_debug(const char *text);
 
-        void _check_status() throw (const char*);
+        void _check_status();
 
         void _make_descr();
         void _fill_array(PyObject* ret);
