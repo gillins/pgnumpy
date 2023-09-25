@@ -56,6 +56,7 @@ depends = ['pgnumpy/cpgnumpy.h']
 module1 = Extension('pgnumpy._cpgnumpy', 
                     sources=sources,
                     depends=depends,
+                    define_macros=[("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")],
                     include_dirs=include_dirs,
                     library_dirs=lib_dirs,
                     libraries=['pq'])
